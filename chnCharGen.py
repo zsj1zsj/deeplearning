@@ -22,15 +22,9 @@ ix2char = {i:c for i,c in enumerate(vocab)}
 def DataLoader(content,size):
     return content[0:size],content[size+1:size+1+size]
 
-train_data, test_data = DataLoader(content,100)
-print(len(train_data),len(test_data))
-
 def data2sensor(data):
-    return [char2ix[c] for c in list(train_data[2])]
-    
+    return [char2ix[c] for c in list(data)]
 
-
-# the legnth of the data is not fixed, so there's no batch in the this class, all batch_size will be set to 1.
 class MyRNN(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(MyRNN, self).__init__()
@@ -46,8 +40,6 @@ class MyRNN(nn.Module):
         output = self.dropout(output)
         output = self.softmax(output)
         return output, hd
-        
-
 
 hidden_size = 1000
 rnn =MyRNN(vocab_size, hidden_size, vocab_size)
@@ -55,5 +47,64 @@ rnn =MyRNN(vocab_size, hidden_size, vocab_size)
 input = data2sensor(train_data[2][0:len(train_data[2])-1])
 target = data2sensor(train_data[2][1:len(train_data[2])])
 
-input = torch.randn(1,1,vocab_size)
-rnn(input)
+criterion = nn.NLLLoss()
+
+learning_rate = 0.0005
+
+import time
+import math
+
+def timeSince(since):
+    now = time.time()
+    s = now - since
+    m = math.floor(s / 60)
+    s -= m * 60
+    return '%dm %ds' % (m, s)
+
+
+n_iters = 10000
+print_every = 10
+plot_every = 500
+all_losses = []
+total_loss = 0 # Reset every plot_every iters
+
+
+def train(input_line_tensor, target_line_tensor):
+    rnn.zero_grad()
+
+    loss = 0
+
+    for i in range(len(input_line_tensor)):
+        output, hidden = rnn(torch.tensor(torch.eye(vocab_size)[input_line_tensor[i]]).view(1,1,-1))
+        #print(output.view(1,-1).shape)
+        #print(f'target_line_tensor[i]:{ torch.tensor([target_line_tensor[i]]) }')
+        l = criterion(output.view(1,-1),torch.tensor([target_line_tensor[i]]))
+        
+        loss+= l
+                      
+    loss.backward()
+
+    for p in rnn.parameters():
+        p.data.add_(-learning_rate, p.grad.data)
+
+    return output, loss.item()
+
+start = time.time()
+
+train_data, test_data = DataLoader(content,10000)
+
+def train2it(train_data):
+    return train_data[0:len(train_data)-1], train_data[iter][1:len(train_data)]
+
+for iter in range(1, n_iters + 1):
+    input,target = train2it(train_data[iter])
+    output, loss = train(input,target)
+    total_loss += loss
+
+    print(iter)
+    if iter % print_every == 0:
+        print('%s (%d %d%%) %.4f' % (timeSince(start), iter, iter / n_iters * 100, loss))
+
+    if iter % plot_every == 0:
+        all_losses.append(total_loss / plot_every)
+        total_loss = 0
