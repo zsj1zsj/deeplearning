@@ -34,9 +34,9 @@ def data2sensor(data):
 class MyRNN(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(MyRNN, self).__init__()
-        self.rnn = nn.RNN(input_size =input_size, hidden_size = input_size, num_layers=1, batch_first=True)
+        self.rnn = nn.RNN(input_size =input_size, hidden_size = hidden_size, num_layers=1, batch_first=True)
         self.fc = nn.Linear(hidden_size, output_size)
-        self.dropbox = nn.Dropout(0.1)
+        self.dropout = nn.Dropout(0.1)
         self.softmax = nn.LogSoftmax(dim=1)
     
     def forward(self, input):
@@ -44,7 +44,7 @@ class MyRNN(nn.Module):
         output = self.fc(output)
         output = torch.sum(output,dim=0)
         output = self.dropout(output)
-        output = softmax(output)
+        output = self.softmax(output)
         return output, hd
         
 
@@ -55,4 +55,5 @@ rnn =MyRNN(vocab_size, hidden_size, vocab_size)
 input = data2sensor(train_data[2][0:len(train_data[2])-1])
 target = data2sensor(train_data[2][1:len(train_data[2])])
 
+input = torch.randn(1,1,vocab_size)
 rnn(input)
